@@ -6,9 +6,61 @@ import asyncio
 import os
 import pygame
 import tempfile
+import re
+import language_tool_python
 
 genai.configure(api_key='AIzaSyDkk9QzHYqjP4jrMCAApApykKiVnynmhdc')
 model = genai.GenerativeModel('gemini-1.5-flash')
+
+emoji_pattern = re.compile("["
+                           u"\U0001F600-\U0001F64F"  # emoticons
+                           u"\U0001F300-\U0001F5FF"  # symbols & pictographs
+                           u"\U0001F680-\U0001F6FF"  # transport & map symbols
+                           u"\U0001F700-\U0001F77F"  # alchemical symbols
+                           u"\U0001F780-\U0001F7FF"  # Geometric Shapes Extended
+                           u"\U0001F800-\U0001F8FF"  # Supplemental Arrows-C
+                           u"\U0001F900-\U0001F9FF"  # Supplemental Symbols and Pictographs
+                           u"\U0001FA00-\U0001FA6F"  # Chess Symbols
+                           u"\U0001FA70-\U0001FAFF"  # Symbols and Pictographs Extended-A
+                           u"\U00002702-\U000027B0"  # Dingbats
+                           u"\U000024C2-\U0001F251" 
+                           "]+", flags=re.UNICODE)
+
+# Initialize the LanguageTool instance for English
+tool = language_tool_python.LanguageTool('en-US')
+
+# Function to check and print grammatical errors in a sentence
+def check_sentence(sentence):
+    matches = tool.check(sentence)
+    for match in matches:
+        print(f"Error: {match.ruleId}")
+        print(f"Message: {match.message}")
+        print(f"Incorrect: {sentence[match.offset:match.offset + match.errorLength]}")
+        print(f"Suggestions: {', '.join(match.replacements)}")
+        print()
+    corrected_sentence = language_tool_python.utils.correct(sentence, matches)
+    return corrected_sentence, len(matches) == 0
+
+# Function to calculate the percentage of correct sentences in the text
+def check_text_accuracy(text):
+    sentences = text.split('.')
+    total_sentences = len(sentences)
+    correct_sentences = 0
+
+    for sentence in sentences:
+        if sentence.strip():  # Check if the sentence is not empty
+            corrected_sentence, is_correct = check_sentence(sentence)
+            if is_correct:
+                correct_sentences += 1
+            print(f"Original Sentence: {sentence}")
+            print(f"Corrected Sentence: {corrected_sentence}")
+            print()
+
+    if total_sentences == 0:
+        return 0.0  # Avoid division by zero
+
+    accuracy = (correct_sentences / total_sentences) * 100
+    return accuracy
 
 async def text_to_speech(text, voice='en-US-AriaNeural'):
     try:
@@ -50,7 +102,7 @@ voice_list=["en-IN-PrabhatNeural","ar-EG-SalmaNeural","en-US-AriaNeural"]
 
 # Initialize recognizer
 recognizer = sr.Recognizer()
-def speakwithbot():
+def speakwithbot(arr):
     # Use the microphone as the source for input.
     with sr.Microphone() as source:
         print("Adjusting for ambient noise... Please wait.")
@@ -62,20 +114,44 @@ def speakwithbot():
         # Recognize speech using Google Web Speech API
         print("Recognizing speech...")
         text = recognizer.recognize_google(audio)
+        text+="."
         print("You said: " + text)
+        arr.append(text)
         return text
     except sr.UnknownValueError:
         print("Google Speech Recognition could not understand the audio.")
+        
     except sr.RequestError as e:
         print(f"Could not request results from Google Speech Recognition service; {e}")
 
 # speakwithbot()
 async def main():
+    arr=[]
+    a=1;
     while(1):
+        
+        cont = input("Enter 1 to continue or 0 to stop: ")
+        if cont == "0":
+            print("Stopping the loop.")
+            break
         print("your turn:")
-        response = model.generate_content(speakwithbot())
-        print(response.text)
-        await text_to_speech(str(response.text), voice='en-IN-PrabhatNeural')
+        
+        response = model.generate_content(speakwithbot(arr))
+        res=response.text
+        res=res.replace('*',' ')
+        res = emoji_pattern.sub(r' ', res)
+        print(res)
+        await text_to_speech(str(res), voice='en-IN-PrabhatNeural')
+    
+    print(arr)
+    concatenated_text = " ".join(arr)
+    accuracy = check_text_accuracy(concatenated_text)
+    print(f"Percentage of correct sentences: {accuracy:.2f}%")
+
+    # text=""
+    # for i in arr:
+    #     text+=arr[i]
+    # print(text)
         
 
 

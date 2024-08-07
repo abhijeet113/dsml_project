@@ -61,7 +61,8 @@ def check_text_accuracy(text):
     return accuracy
 
 # Example text
-text = "he are not doing well.But he is trying for it."
+# text = "he are not doing well.But he is trying for it."
+text="Hi how are you today I am not feeling well"
 
 # Check text accuracy
 accuracy = check_text_accuracy(text)
