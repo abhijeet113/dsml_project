@@ -1,5 +1,4 @@
 import google.generativeai as genai
-import os
 import speech_recognition as sr
 import edge_tts
 import asyncio
@@ -7,7 +6,11 @@ import os
 import pygame
 import tempfile
 import re
-import language_tool_python
+import language_tool_python 
+
+import nltk
+from nltk.corpus import stopwords
+from nltk.tokenize import sent_tokenize
 
 genai.configure(api_key='AIzaSyDkk9QzHYqjP4jrMCAApApykKiVnynmhdc')
 model = genai.GenerativeModel('gemini-1.5-flash')
@@ -28,6 +31,14 @@ emoji_pattern = re.compile("["
 
 # Initialize the LanguageTool instance for English
 tool = language_tool_python.LanguageTool('en-US')
+
+
+def summarize_text(text, num_sentences):
+    sentences = sent_tokenize(text)
+    stop_words = set(stopwords.words('english'))
+    filtered_sentences = [sentence for sentence in sentences if any(word not in stop_words for word in sentence.split())]
+    summary = ' '.join(filtered_sentences[:num_sentences])
+    return summary
 
 # Function to check and print grammatical errors in a sentence
 def check_sentence(sentence):
@@ -137,9 +148,12 @@ async def main():
         print("your turn:")
         
         response = model.generate_content(speakwithbot(arr))
+        # response = model.generate_content(speakwithbot(arr), max_length=50, min_length=20, num_beams=3, temperature=0.7)
         res=response.text
+        
         res=res.replace('*',' ')
         res = emoji_pattern.sub(r' ', res)
+        res = summarize_text(res, 2)
         print(res)
         await text_to_speech(str(res), voice='en-IN-PrabhatNeural')
     
@@ -148,10 +162,6 @@ async def main():
     accuracy = check_text_accuracy(concatenated_text)
     print(f"Percentage of correct sentences: {accuracy:.2f}%")
 
-    # text=""
-    # for i in arr:
-    #     text+=arr[i]
-    # print(text)
         
 
 
